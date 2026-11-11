@@ -1,0 +1,397 @@
+
+// DevCollab — Database Schema
+// Database: PostgreSQL
+// ORM: Prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum PlatformRole {
+  USER
+  ADMIN
+}
+
+enum WorkspaceType {
+  PERSONAL
+  TEAM
+}
+
+enum WorkspaceMemberRole {
+  OWNER
+  MEMBER
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum RepositoryVisibility {
+  PUBLIC
+  PRIVATE
+  INTERNAL
+}
+
+enum IssueState {
+  OPEN
+  CLOSED
+}
+
+enum PullRequestState {
+  OPEN
+  CLOSED
+  MERGED
+}
+
+enum SyncStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum SyncType {
+  INITIAL
+  INCREMENTAL
+}
+
+enum WebhookStatus {
+  RECEIVED
+  PROCESSED
+  FAILED
+}
+
+// ==========================================
+// 1. USERS
+// ==========================================
+
+model User {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String
+  email       String?      @unique
+  avatarUrl   String?
+  platformRole PlatformRole @default(USER)
+
+  githubAccounts       GitHubAccount[]
+  createdWorkspaces    Workspace[]           @relation("WorkspaceCreator")
+  workspaceMemberships WorkspaceMember[]
+  sentInvitations      WorkspaceInvitation[] @relation("InvitationSender")
+  connectedRepositories WorkspaceRepository[] @relation("RepositoryConnector")
+  notifications        Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// 2. GITHUB ACCOUNTS
+// ==========================================
+
+model GitHubAccount {
+  id                  String   @id @default(uuid()) @db.Uuid
+  userId              String   @db.Uuid
+  githubUserId        BigInt   @unique
+  githubUsername      String
+  accessTokenEncrypted String?
+  tokenExpiresAt      DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ==========================================
+// 3. WORKSPACES
+// ==========================================
+
+model Workspace {
+  id        String        @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String        @unique
+  type      WorkspaceType
+  createdBy String        @db.Uuid
+
+  creator      User                  @relation("WorkspaceCreator", fields: [createdBy], references: [id])
+  members      WorkspaceMember[]
+  invitations  WorkspaceInvitation[]
+  repositories WorkspaceRepository[]
+  notifications Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdBy])
+}
+
+// ==========================================
+// 4. WORKSPACE MEMBERS
+// ==========================================
+
+model WorkspaceMember {
+  id          String              @id @default(uuid()) @db.Uuid
+  workspaceId String              @db.Uuid
+  userId      String              @db.Uuid
+  role        WorkspaceMemberRole @default(MEMBER)
+  joinedAt    DateTime            @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+// ==========================================
+// 5. WORKSPACE INVITATIONS
+// ==========================================
+
+model WorkspaceInvitation {
+  id           String           @id @default(uuid()) @db.Uuid
+  workspaceId  String           @db.Uuid
+  invitedEmail String
+  invitedBy    String           @db.Uuid
+  role         WorkspaceMemberRole @default(MEMBER)
+  status       InvitationStatus @default(PENDING)
+  expiresAt    DateTime
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  inviter   User      @relation("InvitationSender", fields: [invitedBy], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([workspaceId, status])
+  @@index([invitedEmail])
+}
+
+// ==========================================
+// 6. GITHUB APP INSTALLATIONS
+// ==========================================
+
+model GitHubAppInstallation {
+  id                  String  @id @default(uuid()) @db.Uuid
+  githubInstallationId BigInt  @unique
+  accountLogin        String
+  accountType         String
+
+  repositories     Repository[]
+  webhookDeliveries WebhookDelivery[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// 7. REPOSITORIES
+// ==========================================
+
+model Repository {
+  id            String               @id @default(uuid()) @db.Uuid
+  githubRepoId  BigInt               @unique
+  name          String
+  fullName      String
+  description   String?
+  visibility    RepositoryVisibility
+  defaultBranch String?
+  htmlUrl       String
+  installationId String              @db.Uuid
+  lastSyncedAt  DateTime?
+
+  installation       GitHubAppInstallation @relation(fields: [installationId], references: [id])
+  workspaceConnections WorkspaceRepository[]
+  issues             Issue[]
+  pullRequests       PullRequest[]
+  contributionEvents ContributionEvent[]
+  syncRuns           SyncRun[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fullName])
+}
+
+// ==========================================
+// 8. WORKSPACE REPOSITORIES
+// ==========================================
+
+model WorkspaceRepository {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspaceId  String   @db.Uuid
+  repositoryId String   @db.Uuid
+  connectedBy  String   @db.Uuid
+  connectedAt  DateTime @default(now())
+
+  workspace  Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  connector  User       @relation("RepositoryConnector", fields: [connectedBy], references: [id])
+
+  @@unique([workspaceId, repositoryId])
+  @@index([repositoryId])
+}
+
+// ==========================================
+// 9. ISSUES
+// ==========================================
+
+model Issue {
+  id            String     @id @default(uuid()) @db.Uuid
+  githubIssueId BigInt     @unique
+  repositoryId  String     @db.Uuid
+  issueNumber   Int
+  title         String
+  state         IssueState
+  authorLogin   String?
+  assigneeLogin String?
+  closedAt      DateTime?
+
+  repository        Repository          @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  contributionEvents ContributionEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([repositoryId, issueNumber])
+  @@index([repositoryId, state])
+}
+
+// ==========================================
+// 10. PULL REQUESTS
+// ==========================================
+
+model PullRequest {
+  id           String            @id @default(uuid()) @db.Uuid
+  githubPrId   BigInt            @unique
+  repositoryId String            @db.Uuid
+  prNumber     Int
+  title        String
+  state        PullRequestState
+  authorLogin  String?
+  baseBranch   String?
+  headBranch   String?
+  mergedAt     DateTime?
+
+  repository        Repository          @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  contributionEvents ContributionEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([repositoryId, prNumber])
+  @@index([repositoryId, state])
+}
+
+// ==========================================
+// 11. CONTRIBUTORS
+// ==========================================
+
+model Contributor {
+  id             String   @id @default(uuid()) @db.Uuid
+  githubUserId   BigInt?  @unique
+  githubUsername String
+  avatarUrl      String?
+
+  contributionEvents ContributionEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([githubUsername])
+}
+
+// ==========================================
+// 12. CONTRIBUTION EVENTS
+// ==========================================
+
+model ContributionEvent {
+  id            String   @id @default(uuid()) @db.Uuid
+  repositoryId  String   @db.Uuid
+  contributorId String?  @db.Uuid
+  eventType     String
+  githubEventId String?  @unique
+  issueId       String?  @db.Uuid
+  pullRequestId String?  @db.Uuid
+  occurredAt    DateTime
+
+  repository  Repository  @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  contributor Contributor? @relation(fields: [contributorId], references: [id], onDelete: SetNull)
+  issue       Issue?      @relation(fields: [issueId], references: [id], onDelete: SetNull)
+  pullRequest PullRequest? @relation(fields: [pullRequestId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([repositoryId, occurredAt])
+  @@index([contributorId, occurredAt])
+}
+
+// ==========================================
+// 13. NOTIFICATIONS
+// ==========================================
+
+model Notification {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  workspaceId String?  @db.Uuid
+  type        String
+  title       String
+  message     String
+  isRead      Boolean  @default(false)
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+// ==========================================
+// 14. SYNC RUNS
+// ==========================================
+
+model SyncRun {
+  id           String     @id @default(uuid()) @db.Uuid
+  repositoryId String     @db.Uuid
+  status       SyncStatus @default(PENDING)
+  syncType     SyncType
+  startedAt    DateTime?
+  completedAt  DateTime?
+  errorMessage String?
+
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([repositoryId, status])
+}
+
+// ==========================================
+// 15. WEBHOOK DELIVERIES
+// ==========================================
+
+model WebhookDelivery {
+  id                String        @id @default(uuid()) @db.Uuid
+  githubDeliveryId  String        @unique
+  installationId    String?       @db.Uuid
+  eventType         String
+  status            WebhookStatus @default(RECEIVED)
+  receivedAt        DateTime      @default(now())
+  processedAt       DateTime?
+
+  installation GitHubAppInstallation? @relation(fields: [installationId], references: [id], onDelete: SetNull)
+
+  @@index([status, receivedAt])
+}
