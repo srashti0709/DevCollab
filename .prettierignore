@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build/
+coverage/
+backend/generated/
+backend/prisma/migrations/
+backend/.agents/
+backend/.claude/
+backend/.windsurf/
