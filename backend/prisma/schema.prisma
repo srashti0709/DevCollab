@@ -11,6 +11,7 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
 // ==========================================
 // ENUMS
 // ==========================================
@@ -79,16 +80,18 @@ enum WebhookStatus {
 model User {
   id          String       @id @default(uuid()) @db.Uuid
   name        String
+  displayName String?
   email       String?      @unique
   avatarUrl   String?
   platformRole PlatformRole @default(USER)
 
-  githubAccounts       GitHubAccount[]
-  createdWorkspaces    Workspace[]           @relation("WorkspaceCreator")
-  workspaceMemberships WorkspaceMember[]
-  sentInvitations      WorkspaceInvitation[] @relation("InvitationSender")
-  connectedRepositories WorkspaceRepository[] @relation("RepositoryConnector")
-  notifications        Notification[]
+  githubAccounts          GitHubAccount[]
+  createdWorkspaces       Workspace[]           @relation("WorkspaceCreator")
+  workspaceMemberships    WorkspaceMember[]
+  sentInvitations         WorkspaceInvitation[] @relation("InvitationSender")
+  connectedRepositories   WorkspaceRepository[] @relation("RepositoryConnector")
+  notifications           Notification[]
+  notificationPreferences NotificationPreference?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -99,12 +102,16 @@ model User {
 // ==========================================
 
 model GitHubAccount {
-  id                  String   @id @default(uuid()) @db.Uuid
-  userId              String   @db.Uuid
-  githubUserId        BigInt   @unique
-  githubUsername      String
-  accessTokenEncrypted String?
-  tokenExpiresAt      DateTime?
+  id                    String   @id @default(uuid()) @db.Uuid
+  userId                String   @db.Uuid
+  githubUserId          BigInt   @unique
+  githubUsername        String
+
+  accessTokenEncrypted  String?
+  tokenExpiresAt        DateTime?
+
+  refreshTokenEncrypted String?
+  refreshTokenExpiresAt DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -160,12 +167,12 @@ model WorkspaceMember {
 // ==========================================
 
 model WorkspaceInvitation {
-  id           String           @id @default(uuid()) @db.Uuid
-  workspaceId  String           @db.Uuid
+  id           String              @id @default(uuid()) @db.Uuid
+  workspaceId  String              @db.Uuid
   invitedEmail String
-  invitedBy    String           @db.Uuid
+  invitedBy    String              @db.Uuid
   role         WorkspaceMemberRole @default(MEMBER)
-  status       InvitationStatus @default(PENDING)
+  status       InvitationStatus    @default(PENDING)
   expiresAt    DateTime
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -187,7 +194,7 @@ model GitHubAppInstallation {
   accountLogin        String
   accountType         String
 
-  repositories     Repository[]
+  repositories      Repository[]
   webhookDeliveries WebhookDelivery[]
 
   createdAt DateTime @default(now())
@@ -199,23 +206,23 @@ model GitHubAppInstallation {
 // ==========================================
 
 model Repository {
-  id            String               @id @default(uuid()) @db.Uuid
-  githubRepoId  BigInt               @unique
-  name          String
-  fullName      String
-  description   String?
-  visibility    RepositoryVisibility
-  defaultBranch String?
-  htmlUrl       String
-  installationId String              @db.Uuid
-  lastSyncedAt  DateTime?
+  id             String               @id @default(uuid()) @db.Uuid
+  githubRepoId   BigInt               @unique
+  name           String
+  fullName       String
+  description    String?
+  visibility     RepositoryVisibility
+  defaultBranch  String?
+  htmlUrl        String
+  installationId String               @db.Uuid
+  lastSyncedAt   DateTime?
 
-  installation       GitHubAppInstallation @relation(fields: [installationId], references: [id])
+  installation        GitHubAppInstallation @relation(fields: [installationId], references: [id])
   workspaceConnections WorkspaceRepository[]
-  issues             Issue[]
-  pullRequests       PullRequest[]
-  contributionEvents ContributionEvent[]
-  syncRuns           SyncRun[]
+  issues              Issue[]
+  pullRequests        PullRequest[]
+  contributionEvents  ContributionEvent[]
+  syncRuns            SyncRun[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -257,7 +264,7 @@ model Issue {
   assigneeLogin String?
   closedAt      DateTime?
 
-  repository        Repository          @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  repository         Repository          @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
   contributionEvents ContributionEvent[]
 
   createdAt DateTime @default(now())
@@ -272,9 +279,9 @@ model Issue {
 // ==========================================
 
 model PullRequest {
-  id           String            @id @default(uuid()) @db.Uuid
-  githubPrId   BigInt            @unique
-  repositoryId String            @db.Uuid
+  id           String           @id @default(uuid()) @db.Uuid
+  githubPrId   BigInt           @unique
+  repositoryId String           @db.Uuid
   prNumber     Int
   title        String
   state        PullRequestState
@@ -283,7 +290,7 @@ model PullRequest {
   headBranch   String?
   mergedAt     DateTime?
 
-  repository        Repository          @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  repository         Repository          @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
   contributionEvents ContributionEvent[]
 
   createdAt DateTime @default(now())
@@ -298,8 +305,8 @@ model PullRequest {
 // ==========================================
 
 model Contributor {
-  id             String   @id @default(uuid()) @db.Uuid
-  githubUserId   BigInt?  @unique
+  id             String  @id @default(uuid()) @db.Uuid
+  githubUserId   BigInt? @unique
   githubUsername String
   avatarUrl      String?
 
@@ -325,9 +332,9 @@ model ContributionEvent {
   pullRequestId String?  @db.Uuid
   occurredAt    DateTime
 
-  repository  Repository  @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  repository  Repository   @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
   contributor Contributor? @relation(fields: [contributorId], references: [id], onDelete: SetNull)
-  issue       Issue?      @relation(fields: [issueId], references: [id], onDelete: SetNull)
+  issue       Issue?       @relation(fields: [issueId], references: [id], onDelete: SetNull)
   pullRequest PullRequest? @relation(fields: [pullRequestId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
@@ -358,6 +365,23 @@ model Notification {
 }
 
 // ==========================================
+// 13.1 NOTIFICATION PREFERENCES
+// ==========================================
+
+model NotificationPreference {
+  userId String @id @db.Uuid
+
+  pullRequestUpdates   Boolean @default(true)
+  issueUpdates         Boolean @default(true)
+  repositoryActivity   Boolean @default(true)
+  workspaceInvitations Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
 // 14. SYNC RUNS
 // ==========================================
 
@@ -382,13 +406,13 @@ model SyncRun {
 // ==========================================
 
 model WebhookDelivery {
-  id                String        @id @default(uuid()) @db.Uuid
-  githubDeliveryId  String        @unique
-  installationId    String?       @db.Uuid
-  eventType         String
-  status            WebhookStatus @default(RECEIVED)
-  receivedAt        DateTime      @default(now())
-  processedAt       DateTime?
+  id               String        @id @default(uuid()) @db.Uuid
+  githubDeliveryId String        @unique
+  installationId   String?       @db.Uuid
+  eventType        String
+  status           WebhookStatus @default(RECEIVED)
+  receivedAt       DateTime      @default(now())
+  processedAt      DateTime?
 
   installation GitHubAppInstallation? @relation(fields: [installationId], references: [id], onDelete: SetNull)
 
