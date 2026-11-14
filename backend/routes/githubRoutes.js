@@ -15,11 +15,24 @@ import {
     fetchRepositoryDetails,
     compareRepositories,
 } from "../controllers/githubRepositoryController.js";
+
 import {
     addRepositoryFavorite,
     removeRepositoryFavorite,
     fetchRepositoryFavorites,
 } from "../controllers/repositoryFavoriteController.js";
+
+import {
+    fetchRepositoryIssues,
+    fetchIssueDetails,
+    fetchIssueTimeline,
+} from "../controllers/githubIssueController.js";
+
+import {
+    saveIssue,
+    removeSavedIssue,
+    fetchSavedIssues,
+} from "../controllers/savedIssueController.js";
 
 const router = Router();
 
@@ -45,6 +58,7 @@ router.get(
     requireAuth,
     fetchAvailableRepositories
 );
+
 // List the authenticated user's favorite repositories.
 router.get(
     "/repositories/favorites",
@@ -65,12 +79,56 @@ router.delete(
     requireAuth,
     removeRepositoryFavorite
 );
+
 // Compare 2 to 4 connected repositories.
 router.get(
     "/repositories/compare",
     requireAuth,
     compareRepositories
 );
+
+// Fetch the authenticated user's saved issues.
+router.get(
+    "/issues/saved",
+    requireAuth,
+    fetchSavedIssues
+);
+
+// Save a GitHub issue.
+router.post(
+    "/repositories/:repositoryId/issues/:issueNumber/save",
+    requireAuth,
+    saveIssue
+);
+
+// Remove a saved GitHub issue.
+router.delete(
+    "/repositories/:repositoryId/issues/:issueNumber/save",
+    requireAuth,
+    removeSavedIssue
+);
+
+// Fetch issues from a connected GitHub repository.
+router.get(
+    "/repositories/:repositoryId/issues",
+    requireAuth,
+    fetchRepositoryIssues
+);
+
+// Fetch activity timeline of a GitHub issue.
+router.get(
+    "/repositories/:repositoryId/issues/:issueNumber/timeline",
+    requireAuth,
+    fetchIssueTimeline
+);
+
+// Fetch details of a specific GitHub issue.
+router.get(
+    "/repositories/:repositoryId/issues/:issueNumber",
+    requireAuth,
+    fetchIssueDetails
+);
+
 // Retrieve repository details.
 router.get(
     "/repositories/:repositoryId",

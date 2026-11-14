@@ -78,11 +78,11 @@ enum WebhookStatus {
 // ==========================================
 
 model User {
-  id          String       @id @default(uuid()) @db.Uuid
-  name        String
-  displayName String?
-  email       String?      @unique
-  avatarUrl   String?
+  id           String       @id @default(uuid()) @db.Uuid
+  name         String
+  displayName  String?
+  email        String?      @unique
+  avatarUrl    String?
   platformRole PlatformRole @default(USER)
 
   githubAccounts          GitHubAccount[]
@@ -92,6 +92,7 @@ model User {
   sentInvitations         WorkspaceInvitation[] @relation("InvitationSender")
   connectedRepositories   WorkspaceRepository[] @relation("RepositoryConnector")
   favoriteRepositories    RepositoryFavorite[]
+  savedIssues             SavedIssue[]
   notifications           Notification[]
   notificationPreferences NotificationPreference?
 
@@ -134,10 +135,10 @@ model Workspace {
   type      WorkspaceType
   createdBy String        @db.Uuid
 
-  creator      User                  @relation("WorkspaceCreator", fields: [createdBy], references: [id])
-  members      WorkspaceMember[]
-  invitations  WorkspaceInvitation[]
-  repositories WorkspaceRepository[]
+  creator       User                  @relation("WorkspaceCreator", fields: [createdBy], references: [id])
+  members       WorkspaceMember[]
+  invitations   WorkspaceInvitation[]
+  repositories  WorkspaceRepository[]
   notifications Notification[]
 
   createdAt DateTime @default(now())
@@ -191,10 +192,10 @@ model WorkspaceInvitation {
 // ==========================================
 
 model GitHubAppInstallation {
-  id                  String  @id @default(uuid()) @db.Uuid
+  id                   String  @id @default(uuid()) @db.Uuid
   githubInstallationId BigInt  @unique
-  accountLogin        String
-  accountType         String
+  accountLogin         String
+  accountType          String
 
   repositories      Repository[]
   webhookDeliveries WebhookDelivery[]
@@ -240,13 +241,14 @@ model Repository {
   installationId String               @db.Uuid
   lastSyncedAt   DateTime?
 
-  installation        GitHubAppInstallation @relation(fields: [installationId], references: [id])
+  installation         GitHubAppInstallation @relation(fields: [installationId], references: [id])
   workspaceConnections WorkspaceRepository[]
-  favorites           RepositoryFavorite[]
-  issues              Issue[]
-  pullRequests        PullRequest[]
-  contributionEvents  ContributionEvent[]
-  syncRuns            SyncRun[]
+  favorites            RepositoryFavorite[]
+  savedIssues          SavedIssue[]
+  issues               Issue[]
+  pullRequests         PullRequest[]
+  contributionEvents   ContributionEvent[]
+  syncRuns             SyncRun[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -458,6 +460,30 @@ model RepositoryFavorite {
   createdAt DateTime @default(now())
 
   @@unique([userId, repositoryId])
+  @@index([userId])
+  @@index([repositoryId])
+}
+
+// ==========================================
+// 17. SAVED ISSUES
+// ==========================================
+
+model SavedIssue {
+  id            String     @id @default(uuid()) @db.Uuid
+  userId        String     @db.Uuid
+  repositoryId  String     @db.Uuid
+  githubIssueId BigInt
+  issueNumber   Int
+  title         String
+  state         IssueState
+  htmlUrl       String
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, repositoryId, issueNumber])
   @@index([userId])
   @@index([repositoryId])
 }
