@@ -2,7 +2,7 @@
 import "dotenv/config";
 import express from "express";
 import session from "express-session";
-
+import githubRoutes from "./routes/githubRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import sessionStore from "./config/sessionStore.js";
 
@@ -50,5 +50,6 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/github", githubRoutes);
 
 export default app;

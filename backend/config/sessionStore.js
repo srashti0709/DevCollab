@@ -162,39 +162,35 @@ class RedisSessionStore extends session.Store {
         const records = await redis.hgetall(key);
 
         for (const [sid, metadataJson] of Object.entries(records)) {
-            try {
-                const metadata = JSON.parse(metadataJson);
+            const metadata = JSON.parse(metadataJson);
 
-                if (metadata.id !== sessionRecordId) {
-                    continue;
-                }
-
-                const storedData = await redis.get(
-                    `${SESSION_PREFIX}${sid}`
-                );
-
-                if (!storedData) {
-                    await redis.hdel(key, sid);
-                    return false;
-                }
-
-                const sessionData = JSON.parse(storedData);
-
-                if (sessionData.userId !== userId) {
-                    return false;
-                }
-
-                await new Promise((resolve, reject) => {
-                    this.destroy(sid, (error) => {
-                        if (error) return reject(error);
-                        resolve();
-                    });
-                });
-
-                return true;
-            } catch (error) {
-                throw error;
+            if (metadata.id !== sessionRecordId) {
+                continue;
             }
+
+            const storedData = await redis.get(
+                `${SESSION_PREFIX}${sid}`
+            );
+
+            if (!storedData) {
+                await redis.hdel(key, sid);
+                return false;
+            }
+
+            const sessionData = JSON.parse(storedData);
+
+            if (sessionData.userId !== userId) {
+                return false;
+            }
+
+            await new Promise((resolve, reject) => {
+                this.destroy(sid, (error) => {
+                    if (error) return reject(error);
+                    resolve();
+                });
+            });
+
+            return true;
         }
 
         return false;

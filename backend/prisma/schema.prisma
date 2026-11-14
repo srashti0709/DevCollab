@@ -86,6 +86,7 @@ model User {
   platformRole PlatformRole @default(USER)
 
   githubAccounts          GitHubAccount[]
+  githubAppInstallations  GitHubInstallationConnection[]
   createdWorkspaces       Workspace[]           @relation("WorkspaceCreator")
   workspaceMemberships    WorkspaceMember[]
   sentInvitations         WorkspaceInvitation[] @relation("InvitationSender")
@@ -196,9 +197,27 @@ model GitHubAppInstallation {
 
   repositories      Repository[]
   webhookDeliveries WebhookDelivery[]
+  connectedUsers    GitHubInstallationConnection[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// 6.1 GITHUB INSTALLATION CONNECTIONS
+// ==========================================
+
+model GitHubInstallationConnection {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  installationId String   @db.Uuid
+  connectedAt    DateTime @default(now())
+
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  installation GitHubAppInstallation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, installationId])
+  @@index([installationId])
 }
 
 // ==========================================
@@ -211,6 +230,9 @@ model Repository {
   name           String
   fullName       String
   description    String?
+  language       String?
+  stars          Int                  @default(0)
+  forks          Int                  @default(0)
   visibility     RepositoryVisibility
   defaultBranch  String?
   htmlUrl        String
@@ -418,3 +440,4 @@ model WebhookDelivery {
 
   @@index([status, receivedAt])
 }
+  
