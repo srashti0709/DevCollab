@@ -91,6 +91,7 @@ model User {
   workspaceMemberships    WorkspaceMember[]
   sentInvitations         WorkspaceInvitation[] @relation("InvitationSender")
   connectedRepositories   WorkspaceRepository[] @relation("RepositoryConnector")
+  favoriteRepositories    RepositoryFavorite[]
   notifications           Notification[]
   notificationPreferences NotificationPreference?
 
@@ -241,6 +242,7 @@ model Repository {
 
   installation        GitHubAppInstallation @relation(fields: [installationId], references: [id])
   workspaceConnections WorkspaceRepository[]
+  favorites           RepositoryFavorite[]
   issues              Issue[]
   pullRequests        PullRequest[]
   contributionEvents  ContributionEvent[]
@@ -440,4 +442,22 @@ model WebhookDelivery {
 
   @@index([status, receivedAt])
 }
-  
+
+// ==========================================
+// 16. REPOSITORY FAVORITES
+// ==========================================
+
+model RepositoryFavorite {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  repositoryId String   @db.Uuid
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, repositoryId])
+  @@index([userId])
+  @@index([repositoryId])
+}

@@ -27,6 +27,22 @@ export const getPersonalWorkspace = async (req, res) => {
 };
 
 export const fetchAvailableRepositories = async (req, res) => {
+    const searchTerm = req.query.search;
+
+    if (
+        searchTerm !== undefined &&
+        (
+            typeof searchTerm !== "string" ||
+            searchTerm.trim().length > 100
+        )
+    ) {
+        return res.status(400).json({
+            success: false,
+            message: "Search must be a string containing at most 100 characters.",
+        });
+    }
+
+    const normalizedSearch = (searchTerm || "").trim().toLowerCase();
     try {
         const connections = await prisma.gitHubInstallationConnection.findMany({
             where: {
@@ -91,7 +107,14 @@ export const fetchAvailableRepositories = async (req, res) => {
             }
         }
 
-        const repositories = Array.from(repositoriesMap.values());
+        const allRepositories = Array.from(repositoriesMap.values());
+
+        const repositories = normalizedSearch
+            ? allRepositories.filter((repository) =>
+                repository.name.toLowerCase().includes(normalizedSearch) ||
+                repository.fullName.toLowerCase().includes(normalizedSearch)
+            )
+            : allRepositories;
 
         return res.status(200).json({
             success: true,
@@ -349,6 +372,187 @@ export const fetchConnectedRepositories = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: "Unable to fetch connected repositories.",
+        });
+    }
+};
+
+export const fetchRepositoryDetails = async (req, res) => {
+    try {
+        const { repositoryId } = req.params;
+
+        if (
+            typeof repositoryId !== "string" ||
+            !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(repositoryId)
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "A valid repository ID is required.",
+            });
+        }
+
+        const repository = await prisma.repository.findFirst({
+            where: {
+                id: repositoryId,
+                workspaceConnections: {
+                    some: {
+                        workspace: {
+                            members: {
+                                some: {
+                                    userId: req.userId,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            include: {
+                workspaceConnections: {
+                    include: {
+                        workspace: {
+                            select: {
+                                id: true,
+                                name: true,
+                                type: true,
+                            },
+                        },
+                    },
+                },
+                installation: {
+                    select: {
+                        accountLogin: true,
+                        accountType: true,
+                    },
+                },
+                _count: {
+                    select: {
+                        issues: true,
+                        pullRequests: true,
+                        contributionEvents: true,
+                    },
+                },
+            },
+        });
+
+        if (!repository) {
+            return res.status(404).json({
+                success: false,
+                message: "Repository not found or you are not authorized to access it.",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            repository: {
+                ...repository,
+                githubRepoId: repository.githubRepoId.toString(),
+                workspaces: repository.workspaceConnections.map(
+                    (connection) => connection.workspace
+                ),
+                workspaceConnections: undefined,
+                installation: repository.installation,
+                statistics: repository._count,
+            },
+        });
+    } catch (error) {
+        console.error("Fetching repository details failed:", error.message);
+
+        return res.status(500).json({
+            success: false,
+            message: "Unable to fetch repository details.",
+        });
+    }
+};
+
+export const compareRepositories = async (req, res) => {
+    try {
+        const { ids } = req.query;
+
+        if (typeof ids !== "string") {
+            return res.status(400).json({
+                success: false,
+                message: "Provide 2 to 4 repository IDs to compare.",
+            });
+        }
+
+        const repositoryIds = ids
+            .split(",")
+            .map((id) => id.trim());
+
+        const isValidUUID = (id) =>
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+        if (
+            repositoryIds.length < 2 ||
+            repositoryIds.length > 4 ||
+            repositoryIds.some((id) => !isValidUUID(id)) ||
+            new Set(repositoryIds).size !== repositoryIds.length
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Provide 2 to 4 unique, valid repository IDs.",
+            });
+        }
+
+        const repositories = await prisma.repository.findMany({
+            where: {
+                id: {
+                    in: repositoryIds,
+                },
+                workspaceConnections: {
+                    some: {
+                        workspace: {
+                            members: {
+                                some: {
+                                    userId: req.userId,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            select: {
+                id: true,
+                name: true,
+                fullName: true,
+                description: true,
+                language: true,
+                stars: true,
+                forks: true,
+                visibility: true,
+                defaultBranch: true,
+                htmlUrl: true,
+            },
+        });
+
+        if (repositories.length !== repositoryIds.length) {
+            return res.status(404).json({
+                success: false,
+                message: "One or more repositories were not found or you are not authorized to access them.",
+            });
+        }
+
+        const repositoryMap = new Map(
+            repositories.map((repository) => [
+                repository.id,
+                repository,
+            ])
+        );
+
+        const comparison = repositoryIds.map((id) =>
+            repositoryMap.get(id)
+        );
+
+        return res.status(200).json({
+            success: true,
+            totalCount: comparison.length,
+            repositories: comparison,
+        });
+    } catch (error) {
+        console.error("Comparing repositories failed:", error.message);
+
+        return res.status(500).json({
+            success: false,
+            message: "Unable to compare repositories.",
         });
     }
 };
