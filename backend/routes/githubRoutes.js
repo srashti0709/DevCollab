@@ -34,6 +34,14 @@ import {
     fetchSavedIssues,
 } from "../controllers/savedIssueController.js";
 
+import {
+    fetchRepositoryPullRequests,
+    fetchPullRequestDetails,
+    fetchPullRequestReviews,
+    fetchPullRequestTimeline,
+    fetchPullRequestLinkedIssues,
+} from "../controllers/githubPullRequestController.js";
+
 const router = Router();
 
 router.get(
@@ -127,6 +135,41 @@ router.get(
     "/repositories/:repositoryId/issues/:issueNumber",
     requireAuth,
     fetchIssueDetails
+);
+
+// Fetch pull requests from a connected GitHub repository.
+router.get(
+    "/repositories/:repositoryId/pull-requests",
+    requireAuth,
+    fetchRepositoryPullRequests
+);
+
+// Fetch details of a specific GitHub pull request.
+router.get(
+    "/repositories/:repositoryId/pull-requests/:pullRequestNumber",
+    requireAuth,
+    fetchPullRequestDetails
+);
+
+// Fetch activity timeline for a specific pull request.
+router.get(
+    "/repositories/:repositoryId/pull-requests/:pullRequestNumber/timeline",
+    requireAuth,
+    fetchPullRequestTimeline
+);
+
+// Fetch reviews for a specific GitHub pull request.
+router.get(
+    "/repositories/:repositoryId/pull-requests/:pullRequestNumber/reviews",
+    requireAuth,
+    fetchPullRequestReviews
+);
+
+// Fetch issues linked to a specific GitHub pull request.
+router.get(
+    "/repositories/:repositoryId/pull-requests/:pullRequestNumber/linked-issues",
+    requireAuth,
+    fetchPullRequestLinkedIssues
 );
 
 // Retrieve repository details.

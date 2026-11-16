@@ -19,7 +19,8 @@ import SavedIssues from "./pages/SavedIssues";
 import Issues from "./pages/Issues";
 import Repositories from "./pages/Repositories";
 import RepositoryDetails from "./pages/RepositoryDetails";
-
+import PullRequests from "./pages/PullRequests";
+import PullRequestDetails from "./pages/PullRequestDetails";
 function LoginPage() {
     const [dark, setDark] = useState(true);
 
@@ -55,6 +56,11 @@ function App() {
                             element={<IssueDetails />}
                         />
                         <Route path="/saved-issues" element={<SavedIssues />} />
+                        <Route path="/pull-requests" element={<PullRequests />} />
+                        <Route
+                            path="/repositories/:repositoryId/pull-requests/:pullRequestNumber"
+                            element={<PullRequestDetails />}
+                        />
                     </Route>
 
                     <Route path="/" element={<Navigate to="/login" replace />} />
