@@ -18,3 +18,11 @@
 ## Code Quality
 
 Keep changes readable, maintainable and consistent with the existing project structure.
+## Pull Request Best Practices
+
+- Keep pull requests focused on a single improvement.
+- Provide a clear title and meaningful description.
+- Link related issues whenever possible.
+- Respond to review feedback before requesting another review.
+- Keep commits organized and descriptive.
+- Ensure changes are tested before requesting approval.
