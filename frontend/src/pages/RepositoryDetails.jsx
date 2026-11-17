@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import ContributorAnalytics from "../components/ContributorAnalytics";
 
 function RepositoryDetails() {
     const { repositoryId } = useParams();
@@ -67,7 +68,10 @@ function RepositoryDetails() {
 
     const statistics = [
         { label: "Issues", value: repository.statistics?.issues ?? 0 },
-        { label: "Pull Requests", value: repository.statistics?.pullRequests ?? 0 },
+        {
+            label: "Pull Requests",
+            value: repository.statistics?.pullRequests ?? 0,
+        },
         {
             label: "Contribution Events",
             value: repository.statistics?.contributionEvents ?? 0,
@@ -75,9 +79,18 @@ function RepositoryDetails() {
     ];
 
     const details = [
-        { label: "Programming Language", value: repository.language || "Not specified" },
-        { label: "Visibility", value: repository.visibility || "Not specified" },
-        { label: "Default Branch", value: repository.defaultBranch || "Not specified" },
+        {
+            label: "Programming Language",
+            value: repository.language || "Not specified",
+        },
+        {
+            label: "Visibility",
+            value: repository.visibility || "Not specified",
+        },
+        {
+            label: "Default Branch",
+            value: repository.defaultBranch || "Not specified",
+        },
         { label: "Stars", value: repository.stars ?? 0 },
         { label: "Forks", value: repository.forks ?? 0 },
         {
@@ -217,6 +230,9 @@ function RepositoryDetails() {
                         )}
                     </div>
                 </section>
+
+                {/* Phase 9: Contributor Analytics */}
+                <ContributorAnalytics repositoryId={repositoryId} />
             </div>
         </main>
     );

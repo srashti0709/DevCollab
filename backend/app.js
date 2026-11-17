@@ -2,6 +2,8 @@
 import "dotenv/config";
 import express from "express";
 import session from "express-session";
+import cors from "cors";
+
 import githubRoutes from "./routes/githubRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import sessionStore from "./config/sessionStore.js";
@@ -19,10 +21,19 @@ if (
     );
 }
 
-// Required when deployed behind a trusted HTTPS reverse proxy.
 if (process.env.NODE_ENV === "production") {
     app.set("trust proxy", 1);
 }
+
+app.use(
+    cors({
+        origin: [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ],
+        credentials: true,
+    })
+);
 
 app.use(express.json());
 

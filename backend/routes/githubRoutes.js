@@ -42,6 +42,15 @@ import {
     fetchPullRequestLinkedIssues,
 } from "../controllers/githubPullRequestController.js";
 
+import {
+    fetchRepositoryContributors,
+    fetchContributorProfile,
+    fetchContributionStatistics,
+    fetchContributorLeaderboard,
+    fetchRepositoryActivityGraph,
+    compareContributors,
+    fetchContributionTimeline,
+} from "../controllers/githubContributorController.js";
 const router = Router();
 
 router.get(
@@ -171,6 +180,52 @@ router.get(
     requireAuth,
     fetchPullRequestLinkedIssues
 );
+// Fetch contributors from a connected GitHub repository.
+router.get(
+    "/repositories/:repositoryId/contributors",
+    requireAuth,
+    fetchRepositoryContributors
+);
+// Fetch a contributor's GitHub profile.
+router.get(
+    "/repositories/:repositoryId/contributors/:username/profile",
+    requireAuth,
+    fetchContributorProfile
+);
+// Fetch contribution statistics for a repository.
+router.get(
+    "/repositories/:repositoryId/contribution-statistics",
+    requireAuth,
+    fetchContributionStatistics
+);
+// Fetch ranked contributor leaderboard for a repository.
+router.get(
+    "/repositories/:repositoryId/contributor-leaderboard",
+    requireAuth,
+    fetchContributorLeaderboard
+);
+// Fetch weekly commit activity for repository graphs.
+router.get(
+    "/repositories/:repositoryId/activity-graph",
+    requireAuth,
+    fetchRepositoryActivityGraph
+);
+// Compare 2 to 4 contributors in a repository.
+router.get(
+    "/repositories/:repositoryId/compare-contributors",
+    requireAuth,
+    compareContributors
+);
+// Fetch paginated contribution timeline for a repository.
+router.get(
+    "/repositories/:repositoryId/contribution-timeline",
+    requireAuth,
+    fetchContributionTimeline
+);
+
+
+
+
 
 // Retrieve repository details.
 router.get(
